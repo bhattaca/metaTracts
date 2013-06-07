@@ -41,7 +41,7 @@ void usage(char* argv[]){
   cout <<"\t -i INPUT_FILENAME // required"<<endl;
   cout <<"\t -thres <int> //required"<<endl;
   cout <<"\t -hessian"<<endl;
-  cout <<"\t -sigma <float> default 3.0"<<endl;
+  cout <<"\t -s <float> default 3.0"<<endl;
   cout <<"\t -eig <int> default 2"<<endl;
   
 }

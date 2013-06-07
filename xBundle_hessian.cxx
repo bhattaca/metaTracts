@@ -71,7 +71,7 @@ void hessian_based_computation(const INPUT_PARAMS * input)
   //reader->SetFileName( input->inputFileName.c_str());
   
   // reader->SetFileName( "/Users/arindambhattacharya/Research/internship/data/CFK-Prepreg-klein-570x356x374-1umVS-16bit.mhd");
-  reader->SetFileName( "/Users/arindambhattacharya/Research/internship/data/kul-crop-2.mhd");
+  reader->SetFileName( "/Users/arindambhattacharya/Research/internship/data/Datensatz_simuliert.mhd");
   
   reader->Update();
   
@@ -157,8 +157,9 @@ void hessian_based_computation(const INPUT_PARAMS * input)
   int ii=0;
   while( !mIt.IsAtEnd() )
     {
+      eig.SetOrderEigenMagnitudes( true );
     // Compute eigen values and eigen matrix
-    eig.SetOrderEigenValues( 1 );
+    color[0]= 0;color[1]= 0;color[2]= 0;
     myTensor = mIt.Get();
     myMatrix[0][0] = myTensor[0];
     myMatrix[0][1] = myTensor[1];
@@ -171,33 +172,80 @@ void hessian_based_computation(const INPUT_PARAMS * input)
     myMatrix[2][2] = myTensor[5];
     eig.ComputeEigenValuesAndVectors( myMatrix, eigenVal, eigenMatrix );
     
-
+    
     //setColor (eigenMatrix, color);
-    if (int (inIt.Get()) > input->thresh){
-      for (int i=0; i<Dimension; i++)
+    /*
+     if (int (inIt.Get()) > input->thresh){
+     for (int i=0; i<Dimension; i++)
+     {
+     //color[i]=((eigenMatrix[input->eigenVecNum][i]+1.0)/2.0)*255;
+     //color[i]= abs(eigenMatrix[2][i])*255;
+     //color[i]= int(inIt.Get()/65536.0f * 255);
+     }
+     }
+     else{
+     // debug setting everything to original color
+     color[0]= int(inIt.Get()/65536.0f * 255);
+     color[1]= int(inIt.Get()/65536.0f * 255);
+     color[2]=  int(inIt.Get()/65536.0f * 255);
+     //color[0]= 0;color[1]= 0;color[2]= 0;
+     }
+     */
+    // compute from tubularness
+    bool bug1 = false;
+    bool bug2 = false;
+    if ( eigenVal[1] < 0.0f  && eigenVal[2] < 0.0f && eigenVal[0] > 0.0f && int (inIt.Get()) > input->thresh )
       {
-      color[i]=((eigenMatrix[input->eigenVecNum][i]+1.0)/2.0)*255;
-      //color[i]= abs(eigenMatrix[2][i])*255;
+      bug1=true;
+      if (abs(eigenVal[1])/(abs(eigenVal[2])*1.0f) < 0.9)
+        {
+        
+        for (int i=0; i<Dimension; i++)
+          {
+          //color[i]=((eigenMatrix[input->eigenVecNum][i]+1.0)/2.0)*255;
+          color[i]= abs(eigenMatrix[0][i])*255;
+          //color[i]= int(inIt.Get()/65536.0f * 255);
+          }
+        bug2 = true;
+        }
       }
-    }
-    else{
-      color[0]= 0;color[1]= 0;color[2]= 0;
-    }
     
     
+    //    if (ii < 90){
+    //      std::cout << " After ComputeEigenValuesAndVectors" << std::endl;
+    //      cout <<" coords " << rgbIt.GetIndex() << endl;
+    //      cout <<"scalar " << inIt.Get() <<"  th " << input->thresh<< endl;
+    //      std::cout << "myTensor " << myTensor << std::endl;
+    //      std::cout << myMatrix << std::endl;
+    //      std::cout << "eigenVal " << eigenVal << std::endl;
+    //      std::cout << "eigenMatrix \n" << eigenMatrix << std::endl;
+    //      std::cout << "color " << int(color [0]) << " " << int(color [1]) <<" "<< int(color [2]) << std::endl;
+    //      ii++;
+    //    }
     
-       if (ii < 900){
-       std::cout << " After ComputeEigenValuesAndVectors" << std::endl;
-         cout <<"scalar " << inIt.Get() <<"  th " << input->thresh<< endl;
+    if (input->degugMode )
+      {
+      ImageType::IndexType idx = mIt.GetIndex();
+      if (idx[0]== 11 &&  idx[1]== 32 && idx[2]== 142 ){
+        // set things
+        //color[0]= 255;color[1]= 0;color[2]= 0;
+        
+        cout <<"idx " << idx;
+        cout <<"pixel " << HessianOutputImage->GetPixel(idx) << endl;
+        cout <<"tubularness  " <<abs(eigenVal[1])/(abs(eigenVal[2])*1.0f) << endl;
+        cout <<"bug " << int (bug1) << " "<< int (bug2) << endl;
         std::cout << "myTensor " << myTensor << std::endl;
+        cout <<"scalar " << inIt.Get() <<"  th " << input->thresh<< endl;
+        std::cout << "color " << int(color [0]) << " " << int(color [1]) <<" "<< int(color [2]) << std::endl;
         std::cout << myMatrix << std::endl;
         std::cout << "eigenVal " << eigenVal << std::endl;
         std::cout << "eigenMatrix \n" << eigenMatrix << std::endl;
-        std::cout << "color " << int(color [0]) << " " << int(color [1]) <<" "<< int(color [2]) << std::endl;
-          ii++;
+        
+      }
+      
       }
     
-    rgbIt.Set(color);
+    rgbIt.Set(color); // set the color of the eigen matrix
     
     oIt.Set( eigenMatrix );
     ++oIt;
