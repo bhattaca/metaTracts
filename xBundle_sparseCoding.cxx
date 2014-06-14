@@ -58,8 +58,7 @@ void sparseCoding_computations (const INPUT_PARAMS * input)
   typedef itk::ConstNeighborhoodIterator< ImageType, BoundaryConditionType > NeighborhoodIteratorType;
   
   NeighborhoodIteratorType::RadiusType radius; radius.Fill(input->radius);
-  NeighborhoodIteratorType it( radius, reader->GetOutput(),
-                              reader->GetOutput()->GetRequestedRegion() );
+  NeighborhoodIteratorType it( radius, reader->GetOutput(), reader->GetOutput()->GetRequestedRegion() );
   //debug
   cout <<"size  " << reader->GetOutput()->GetRequestedRegion().GetSize();
   
@@ -69,19 +68,26 @@ void sparseCoding_computations (const INPUT_PARAMS * input)
     for (it.GoToBegin(); !it.IsAtEnd(); ++it)
       {
       ImageType::IndexType idx = it.GetIndex();
-      
-      for (int i=0; i< input->linInd;i++)
+      if (rand() % 4 == 0)
         {
-        if (idx[0]== 0 &&  idx[1]== 0 && idx[2]== 0 )
+        cout <<" printing " << endl;
+        for (int i=0; i< input->linInd;i++)
           {
-          cout <<i <<" - "<< it.GetIndex(i)<<" -- " << (int)it.GetPixel(i)<< endl;
+          
+          if (idx[0]== 0 &&  idx[1]== 0 && idx[2]== 0 )
+            {
+            cout <<i <<" - "<< it.GetIndex(i)<<" -- " << (int)it.GetPixel(i)<< endl;
+            }
+          
+          myfile << (int)it.GetPixel(i);
+          if (i < input->linInd-1)
+            myfile <<",";
+          
           }
-        myfile << (int)it.GetPixel(i);
-        if (i < input->linInd-1)
-          myfile <<",";
-        }
-      myfile <<"\n";
+        myfile <<"\n";
+        }// if end
       }
+    
     myfile.close();
     }
   else cout << "Unable to open file";
