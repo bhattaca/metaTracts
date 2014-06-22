@@ -53,7 +53,9 @@ public:
   vector <int> indicesFiberInfo;
   vector <int> startLocations;
 
-
+  //cylinder 
+  float cylLength;
+  float cylRadius;
 
   INPUT_PARAMS()
   {
@@ -80,11 +82,16 @@ public:
 	colorTrack = false;
 	colorTrackID = -1;
 	
-	minFiberLength = 50.0;
+	minFiberLength = 60.0;
 	
 	colorVol=false;
 	clusterSpecific = false;
 	colorSpecificFibers = false; 
+	
+	//Cylinder
+	cylLength = 20.0;
+	cylRadius = 2.0;
+	
 	//outputs D:\\ABhattacharya\\Internship\\output
 	/*
 	graphFileName = "C:\\Users\\p41123\\Documents\\internship\\output\\graph.csv";

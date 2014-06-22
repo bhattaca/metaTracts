@@ -14,4 +14,6 @@ void compute_distances (const INPUT_PARAMS  * input, vector<FIBER> &bundle, vect
 void write_graph( vector<EDGE> &graph,const string graphFileName);
 void write_fibers (vector<FIBER> &bundle, const string bundleInfoFname);
 void computeColor ( const INPUT_PARAMS * input);
+
+const std::string currentDateTime();
 #endif // XBUNDLE_HESSIAN_H_INCLUDED

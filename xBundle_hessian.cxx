@@ -130,6 +130,26 @@ typedef itk::ImageRegionIteratorWithIndex<HessianFilterType::OutputImageType>  H
 typedef itk::SymmetricEigenAnalysis< DoubleMatrixType, DoubleVectorType, DoubleMatrixType > EigenVectorAnalysisType;
 
 
+// Function to correct the orientation of fibers in fiber bundles. 
+void correctFiberBundleOrientaion(vector<FIBER> &bundle);
+// Compute the average orientattion
+void computeAverageOrientation(vector<FIBER> &bundle);
+
+void averageOrientationEndPointsBundle(vector<FIBER> &bundle);
+void correctOrientationEndPointsBundle(vector<FIBER> &bundle);
+
+
+// Get current date/time, format is YYYY-MM-DD.HH:mm:ss
+const std::string currentDateTime() {
+	time_t     now = time(0);
+	struct tm  tstruct;
+	char       buf[80];
+	tstruct = *localtime(&now);
+	strftime(buf, sizeof(buf), "%Y-%m-%d.%X", &tstruct);
+
+	return buf;
+}
+
 template<typename t>
 t dist(vector<t> v1, vector<t> v2)
 {
@@ -193,16 +213,7 @@ void findNearPts(
 }
 
 
-// Get current date/time, format is YYYY-MM-DD.HH:mm:ss
-const std::string currentDateTime() {
-	time_t     now = time(0);
-	struct tm  tstruct;
-	char       buf[80];
-	tstruct = *localtime(&now);
-	strftime(buf, sizeof(buf), "%Y-%m-%d.%X", &tstruct);
 
-	return buf;
-}
 
 //  print information
 void print_info(const DoubleVectorType eigenVal, const DoubleMatrixType eigenMatrix, const  InIteratorType inIt,
@@ -434,7 +445,7 @@ void addPt2pq(priority_queue< pair<float, vector<int> >, vector<pair<float, vect
 
 
 
-
+// Set the start points 
 void setStartPointsFromConfig(
 	const vector<int> startLocations,
 	vector < vector <int> > & configStartPts
@@ -447,15 +458,198 @@ void setStartPointsFromConfig(
 		temp[0] = startLocations[3 * i + 0];
 		temp[1] = startLocations[3 * i + 1];
 		temp[2] = startLocations[3 * i + 2];
-		int spacings = 4;
+		int spacings = 5;
 		vector <int> radius(3, 0);
-		radius[0] = 2;
-		radius[1] = 2;
-		radius[2] = 2;
+		radius[0] = 10;
+		radius[1] = 10;
+		radius[2] = 10;
 		findNearPts(temp, spacings, radius, configStartPts);
 	}
 }
 
+//Function to compute the average orientation at each location.
+void computeAverageOrientation( vector<FIBER> & bundle)
+{
+	int bundleSise = bundle.size();
+	for (int n = 0; n < bundleSise; n++)
+	{
+		const int fiberSize = bundle[n].points.size();
+		if (fiberSize < 2)
+			continue;
+		//temporary vector to store the average orientaions
+		vector< vector<float> > tempAvgOrientation(fiberSize, vector<float>(3,0.0));
+
+		//Orientation at first point is the average of the first and second point. 
+		vector<float> tempDir(3,0.0);
+		for (int i = 0; i < 2; i++)
+		{
+			for (int d = 0; d < 3; d++)
+			{
+				tempDir[d] = tempDir[d] + bundle[n].dir[i][d];
+			}
+		}
+		//set the average orientation of the first point in the fiber
+		for (int d = 0; d < 3; d++)
+		{
+			//bundle[n].dir[0][d] = tempDir[d] / 2.0;
+			tempAvgOrientation[0][d] = tempDir[d] / 2.0;
+		}
+
+
+		//Orientation of the last point is the average of the last and the second last point
+		tempDir.clear();
+		tempDir.resize(3, 0.0);
+		for (int i = 0; i < 2; i++)
+		{
+			for (int d = 0; d < 3; d++)
+			{
+				tempDir[d] = tempDir[d] + bundle[n].dir[fiberSize - i - 1][d];
+			}
+	
+		}
+		for (int d = 0; d < 3; d++)
+		{
+			//bundle[n].dir[fiberSize - 1][d] = tempDir[d] / 2.0;
+			tempAvgOrientation[fiberSize - 1][d] = tempDir[d] / 2.0;
+		}
+		
+
+		//
+		for (int p = 1; p < fiberSize - 1; p++)
+		{
+			vector<float> tempDir(3, 0.0);
+			for (int j = -1; j < 2; j++)
+			{
+				for (int d = 0; d < 3; d++)
+				{
+					tempDir[d] = tempDir[d] + bundle[n].dir[p + j][d];
+				}
+			}
+			for (int d = 0; d < 3; d++)
+			{
+				//bundle[n].dir[p][d] = tempDir[d] / 3.0;
+				tempAvgOrientation[p][d] = tempDir[d] / 3.0;
+			}
+		}
+
+		// set the orienataion by copying from tempAvgOrientaion
+
+		for (int i = 0; i < fiberSize; i++)
+		{
+			for (int d = 0; d < 3; d++)
+			{
+				bundle[n].dir[i][d] = tempAvgOrientation[i][d];
+			}
+		}
+	}
+}
+
+// Function to correct the orientation of fibers in fiber bundles. 
+void correctFiberBundleOrientaion(vector<FIBER> &bundle)
+{
+	int bundleSise = bundle.size();
+	for (int n = 0; n < bundleSise; n++)
+	{
+		int indexOfPointBeforeEndpt1;
+		int indexOfPointBeforeEndpt2;
+		int fiberSise = bundle[n].points.size();
+
+		if (bundle[n].endPt1Index != 0){
+			indexOfPointBeforeEndpt1 = bundle[n].endPt1Index - 1;
+			//indexOfPointBeforeEndpt2 = bundle[n].endPt2Index - 1;
+
+			float vecA[3] = { 0.0f, 0.0f, 0.0f };
+			// find the first vector
+			for (int i = 0; i < 3; i++)
+				vecA[i] = bundle[n].points[indexOfPointBeforeEndpt1][i]
+				- bundle[n].points[bundle[n].endPt1Index][i];
+
+			float dotPdt = 0.0;
+			for (int i = 0; i < 3; i++)
+			{
+				dotPdt = vecA[i] * bundle[n].dir[bundle[n].endPt1Index][i];
+			}
+
+			//DEBUG
+			if (bundle[n].id == 219 || bundle[n].id == 235)
+			{
+				cout << "vecA " << vecA[0] << " " << vecA[1] << " " << vecA[2] << endl;
+				cout << "dir at endpt1 " << bundle[n].dir[bundle[n].endPt1Index][0] << " " << bundle[n].dir[bundle[n].endPt1Index][1]
+					<< " " << bundle[n].dir[bundle[n].endPt1Index][2] << endl;
+				cout << "dotpdt " << dotPdt << endl;
+			}
+			//cout << "dotPdt " << dotPdt << endl;
+			if (dotPdt < 0.0)
+			{
+				for (int i = 0; i <= bundle[n].endPt1Index; i++)
+				{
+					for (int j = 0; j < 3; j++)
+					{
+						bundle[n].dir[i][j] = bundle[n].dir[i][j] * (-1.0);
+					}
+				}
+			}
+			else
+			{
+				// change the second half
+				// change the second half 
+				int start = bundle[n].endPt1Index + 1;
+
+				for (int i = start; i < fiberSise; i++)
+				{
+					for (int j = 0; j < 3; j++)
+					{
+						bundle[n].dir[i][j] = bundle[n].dir[i][j] * (-1.0);
+					}
+				}
+			}
+		}
+		else
+		{
+
+			cout << "bundle[n].endPt1Index " << bundle[n].endPt1Index << endl;
+			cout << "bundle[n].endPt2Index " << bundle[n].endPt2Index << endl;
+			cout << "tracknum " << bundle[n].id << endl;
+			// endPT1 is 0
+			indexOfPointBeforeEndpt2 = bundle[n].endPt2Index - 1;
+			if (indexOfPointBeforeEndpt2 < 0)
+			{
+				cerr << "ERROR in function reverse direction.";
+				exit(0);
+			}
+			float vecA[3] = { 0.0f, 0.0f, 0.0f };
+			// find the first vector
+			for (int i = 0; i < 3; i++)
+				vecA[i] = bundle[n].points[indexOfPointBeforeEndpt2][i]
+				- bundle[n].points[bundle[n].endPt2Index][i];
+
+			float dotPdt = 0.0;
+			for (int i = 0; i < 3; i++)
+			{
+				dotPdt = vecA[i] * bundle[n].dir[bundle[n].endPt2Index][i];
+			}
+			cout << "*** DotPdt " << dotPdt << endl;
+			if (dotPdt < 0.0)
+			{
+				for (int i = 1; i < fiberSise; i++)
+				{
+					for (int j = 0; j < 3; j++)
+					{
+						bundle[n].dir[i][j] = bundle[n].dir[i][j] * (-1.0);
+					}
+				}
+			}
+			else
+			{
+				//change just the first one 
+				for (int j = 0; j < 3; j++)
+				{
+					bundle[n].dir[0][j] = bundle[n].dir[0][j] * (-1.0);
+				}
+			}
+		}
+	}
+}
 
 //color a particular track 
 void colorTrack(RGBImageTypePointer &rgbEigen, vector<FIBER> &bundle, const int id)
@@ -472,10 +666,18 @@ void colorTrack(RGBImageTypePointer &rgbEigen, vector<FIBER> &bundle, const int 
 		}
 
 		unsigned char color[3] = { 0, 0, 0 };
-		// the settings of the direction is not accurate 
 		color[0] = abs(bundle[id].dir[0][0]) * 255;
 		color[2] = abs(bundle[id].dir[0][1]) * 255;
 		color[1] = abs(bundle[id].dir[0][2]) * 255;
+		//if (color[1] = abs(bundle[id].dir[0][0]) < 0.0)
+		//{
+		//	color[0] = abs(bundle[id].dir[bundle[id].endPt1Index][2]) * 255;
+		//}
+		//else
+		//{
+		//	color[2] = abs(bundle[id].dir[bundle[id].endPt1Index][2]) * 255;
+		//}
+		
 
 		rgbEigen->SetPixel(idx, color);
 	}
@@ -529,53 +731,48 @@ void colorTrack(RGBImageTypePointer &rgbEigen,
 	const int clusterInd,
 	const int id)
 {
-	cout << "In color track " << id << " cluster **********" << clusterInd << endl;
+	
 	int m = id;
 
 	unsigned char color[3] = { 0, 0, 0 };
-	unsigned char red[3] = { 255, 0, 0 };
-	unsigned char green[3] = { 0, 255, 0 };
-	unsigned char blue[3] = { 0, 0, 255 };
-	unsigned char yellow[3] = { 255, 255, 0 };
-	unsigned char purple[3] = { 0, 255, 255 };
-	unsigned char purple2[3] = { 255, 0, 255 };
 	// the settings of the direction is not accurate 
 	if (clusterInd == 1)
 	{
 
-		color[0] = 152;
-		color[1] = 105;
-		color[2] = 198;
+		color[0] = 24;
+		color[1] = 106;
+		color[2] = 82;
 	}
 	else if (clusterInd == 2)
 	{
 		//color[0] = 255; color[1] = 128;
-		color[0] = 132;
-		color[1] = 204;
-		color[2] = 93;
+		color[0] = 252;
+		color[1] = 70;
+		color[2] = 12;
 	}
 	else if (clusterInd == 3)
 	{
 		//color[0]=255;color[1]=255;
-		color[0] = 193;
-		color[1] = 82;
-		color[2] = 58;
+		color[0] = 131;
+		color[1] = 67;
+		color[2] = 187;
 
 	}
 	else if (clusterInd == 4)
 	{
 		//color[0]=128;
 		//color[1]=255;
-		color[0] = 146;
-		color[1] = 185;
-		color[2] = 186;
+		//color[0] = 61;
+		//color[1] = 2;
+		//color[2] = 25;
+		color[2] = 255;
 	}
 	else if (clusterInd == 5)
 	{
 		//color[1]=255;
-		color[0] = 76;
-		color[1] = 65;
-		color[2] = 64;
+		color[0] = 252;
+		color[1] = 230;
+		color[2] = 146;
 
 	}
 	else if (clusterInd == 6)
@@ -583,17 +780,17 @@ void colorTrack(RGBImageTypePointer &rgbEigen,
 
 		//color[1]=255;
 		//color[2]=128;
-		color[0] = 175;
-		color[1] = 155;
-		color[2] = 77;
+		color[0] = 64;
+		color[1] = 191;
+		color[2] = 222;
 	}
 	else if (clusterInd == 7)
 	{
 		//color[1]=255;
 		//color[2]=255;
-		color[0] = 187;
-		color[1] = 87;
-		color[2] = 133;
+		color[0] = 128;
+		color[1] = 100;
+		color[2] = 10;
 	}
 	else if (clusterInd == 8)
 	{
@@ -643,8 +840,13 @@ void colorTrack(RGBImageTypePointer &rgbEigen,
 	else
 	{
 		// if non of the clusters match return
+		//cerr << "ERROR " << id << endl;
 		return;
 	}
+
+	cout << "In color track "<<id <<" -- " << bundle[id].id << " cluster " << clusterInd << " color "
+		<< int(color[0]) << " " << int(color[1]) << " " << int(color[2])
+		<< " total size  " << bundle[id].allPoints.size() << endl;
 	for (int i = 0; i < bundle[id].allPoints.size(); i++)
 	{
 		ImageType::IndexType idx;
@@ -925,10 +1127,12 @@ void trackPoint2Debug(DoubleMatrixImagePointer &m_Output,
 	FIBER f;
 	f.id = trackNum;
 	float len = 0.0;
+	bool reverseVector = false;
+
 	for (int dir = 0; dir < 2; dir++){
 
 		pq = priority_queue< pair<float, vector<int> >, vector<pair<float, vector<int> > >, compare >();
-		bool firstRun = true;
+		bool firstRun = true; // first run in this  direction 
 		//set idx to trackId
 		for (int d = 0; d < 3; d++)
 		{
@@ -990,6 +1194,7 @@ void trackPoint2Debug(DoubleMatrixImagePointer &m_Output,
 			DoubleMatrixType m = m_Output->GetPixel(idx);
 
 			// first one way then the other to get the entire thing.
+			
 			if (dir == 0 && firstRun){
 				for (int k = 0; k < 3; k++)
 				{
@@ -998,6 +1203,37 @@ void trackPoint2Debug(DoubleMatrixImagePointer &m_Output,
 
 				firstRun = false;
 			}
+			
+
+			//if true then the vector is dir is reversed in the first run, no need to do it for dir ==1
+			//else for dir == 1 must reverse vector
+			/*
+			if (firstRun && dir == 0){
+					if (m[0][2] < 0.0)
+					{
+						reverseVector = true; 
+					}
+				
+				if (reverseVector){
+					for (int d = 0; d < 3; d++)
+					{
+						m[0][d] = m[0][d] * -1.0;
+					}
+				}
+
+				firstRun = false;
+			}
+			if (firstRun  && dir == 1){
+				if (!reverseVector)
+				{
+					for (int d = 0; d < 3; d++)
+					{
+						m[0][d] = m[0][d] * -1.0;
+					}
+				}
+				firstRun = false;
+			}
+			*/
 			//cout << "dir " << dir << endl;
 			//cout << "m " << m[0][0] << " " << m[0][1] << " " << m[0][2] << endl;
 
@@ -1061,12 +1297,12 @@ void trackPoint2Debug(DoubleMatrixImagePointer &m_Output,
 
 					findHorrDistance(m, idx, tempIdx, perpDist, horrDist);
 
-					if (perpDist > 0.0 && perpDist < 8.0 && horrDist < 3.0)
+					if (perpDist > 0.0 && perpDist < input->cylLength && horrDist < input->cylRadius)
 						f.allPoints.push_back(vecTmpIdx);
 
 					// inside the cylinder
 					//if (perpDist > 0.5 && perpDist < 4.0 && horrDist < 2.0)
-					if (perpDist > 1.5 && perpDist < 8.0 && horrDist < 3.0)
+					if (perpDist > 4.5 && perpDist < input->cylLength && horrDist < input->cylRadius)
 					{
 
 						//if (dir==0){
@@ -1103,7 +1339,7 @@ void trackPoint2Debug(DoubleMatrixImagePointer &m_Output,
 							float combinedD = 0.0;
 							//combinedD = 0.33*exp(-angle*angle / 5.0) + 0.66*(1 - exp(-perpDist*perpDist / 4.0));
 							//DEBUG
-							combinedD = 0.33*exp(-angle*angle / 5.0) + 0.66*(1 - exp(-perpDist*perpDist / 4.0));
+							combinedD = 0.33*exp(-angle*angle / 5.0) + 0.66*(1 - exp(-perpDist*perpDist / 10.0));
 							pair<float, vector<int> > a = make_pair((combinedD), vecTmpIdx);
 							pq.push(a);
 							//check if anything is added in this turn
@@ -2213,6 +2449,7 @@ void hessian_based_computation(INPUT_PARAMS * input,
 		if (!input->startLocations.empty())
 		{
 			setStartPointsFromConfig(input->startLocations, configStartPts);
+			cerr << "Total number of start points : " << configStartPts.size() << endl;
 		}
 		
 
@@ -2220,22 +2457,36 @@ void hessian_based_computation(INPUT_PARAMS * input,
 		int tot = configStartPts.size();
 		//
 		int j = 1; // id of the pixel
+
+		cerr << " Compute fibers time: start  " << currentDateTime() << endl;
 		for (int i = 0; i< configStartPts.size(); i++){
 			idx[0] = configStartPts[i][0];
 			idx[1] = configStartPts[i][1];
 			idx[2] = configStartPts[i][2];
-			cerr << (i*1.0 / configStartPts.size()) * 100.0 << " percent done" << endl;
-			//cout <<i<<" out of "<<tot <<endl; 
+
+
+			cerr << (i*1.0 / configStartPts.size()) * 100.0 << " percent done [" << i << " out of " << configStartPts.size() << "]";
+			cerr << " idx " << idx[0] << " " << idx[1] << " " << idx[2] << endl;
+				//cout <<i<<" out of "<<tot <<endl; 
 			//cout <<"start " << idx << " value " << aniso_filter->GetOutput()->GetPixel(idx) << endl;
 			if (region.IsInside(idx))
 			if (aniso_filter->GetOutput()->GetPixel(idx) > input->thresh && possibleSeeds->GetPixel(idx))
 			{
-				trackPoint2Debug(m_Output, input, idx, j, rgbEigen, possibleSeeds, bundle);
+				trackPoint2Debug( m_Output, input, idx, j, rgbEigen, possibleSeeds, bundle);
 				startLocs->SetPixel(idx, 255);
 			}
 		}
+		cerr << " Compute fibers time: end  " << currentDateTime() << endl;
 		cerr << "number of small fibers " << smallFiberNum << endl;
 		cerr << "number of large fibers " << j - 1 << endl;
+
+
+		averageOrientationEndPointsBundle(bundle);
+		correctOrientationEndPointsBundle(bundle);
+		//Correct the orientation of the fibers. 
+		//correctFiberBundleOrientaion(bundle);
+		//Compute Average Orientation
+		//computeAverageOrientation(bundle);
 
 
 		// all the fibers are tracked 
@@ -2532,7 +2783,7 @@ void hessian_based_computation(INPUT_PARAMS * input,
 				{
 					if (input->colorSpecificFibers)
 					{
-						cerr << "Function 1" << endl;
+						cerr << "Coloring specific fibers." << endl;
 						for (int i = 0; i < input->indicesColorSpecificFibers.size(); i++)
 						{
 							int tempTrackId = input->indicesColorSpecificFibers[i] - 1;
@@ -2557,9 +2808,9 @@ void hessian_based_computation(INPUT_PARAMS * input,
 			{
 				//bundle[input->colorTrackID].colorFiber();
 				cout << "colorTrackid != -1 " << endl;
-				
-				 colorTrack(rgbEigen, bundle, input->colorTrackID); 
-				
+
+				colorTrack(rgbEigen, bundle, input->colorTrackID);
+
 			}
 		}
 		cout << "end hessian comp \n";
@@ -2942,14 +3193,14 @@ void compute_distances(const INPUT_PARAMS  * input, vector<FIBER> &bundle, vecto
 	for (int m = 0; m < M - 1; m++)
 	{
 		if (int((m*1.0 / M) * 100) % 20 == 0)
-			cout << int((m*1.0 / M) * 100) << " percent done." << endl;
+			cerr << int((m*1.0 / M) * 100) << " percent done." << endl;
 
 		for (int n = m + 1; n < M; n++)
 		{
 			/*cout <<"**********************\n";*/
 
-			cout << "comparing " << m << "[" << bundle[m].id << "]"
-				<< "  with " << n << "[" << bundle[n].id << "] \n";
+			/*cout << "comparing " << m << "[" << bundle[m].id << "]"
+				<< "  with " << n << "[" << bundle[n].id << "] \n";*/
 			float d = 0.0;
 			EDGE a;
 			//compare(bundle,a, m, n, d);
@@ -3151,9 +3402,187 @@ tot=tot+D;
 d=tot/M;
 }
 */
-
-
 inline void compareFibers(
+	vector<FIBER> &bundle,
+	EDGE &e,
+	const int a, // fiber index in to the fiber bundle starts from 0.
+	const int b, // fiber index
+	float & d,
+	bool & flagUseMax // if true use the maximum of the distances.
+	)
+{
+
+	float tot = 0.0;
+	float combinedShortestDist = 10000000.0;
+	int M = bundle[a].points.size(); //size of fiber a
+	int N = bundle[b].points.size(); //suze of fiber b
+	int num = 0;
+	float total = 0.0;
+	int ClosestPointInA = 0;
+	int ClosestPointInB = 0;
+
+
+	for (int k = 0; k < M; k++)
+	{	
+		float D=0.0;
+		int tempNode2_loc; 
+		for (int l = 0; l < N; l++)
+		{
+			float tempD = sqrt(dist(bundle[a].points[k], bundle[b].points[l]));
+			if (l == 0)
+			{
+				D = tempD;
+				tempNode2_loc = l;
+			}
+			else
+			{
+				if (tempD < D){
+					D = tempD;
+					tempNode2_loc = l;
+				}
+			}
+		}
+
+		if (k == 0){ 
+			combinedShortestDist = D;
+			e.node1_loc = 0;
+			e.node2_loc = tempNode2_loc;
+		}
+		else
+		{
+			if (D<combinedShortestDist)
+			{
+				combinedShortestDist = D;
+				e.node1_loc = k;
+				e.node2_loc = tempNode2_loc;
+			}
+		}
+		// threshold
+		if (D > 2.0)
+		{
+			tot = tot + D;
+			num++;
+		}
+	}
+
+	if (num == 0)
+		d = 0.0;
+	else
+	{
+		d = tot / num;
+	}
+
+
+	if (abs(d - 0.0) < 0.01)
+	{
+		d = 0.0;
+		//cout << "total " << tot << ", num " << num << " \n";
+	}
+
+	//cout << "\nDistance between fiber " << a << " and fiber " << b << " is " << d << endl;
+
+	/*
+	int closestEndPt1, closestEndPt2;
+	float closestDistance;
+
+	int endpt1A = bundle[a].endPt1Index;
+	int endpt2B = bundle[b].endPt2Index;
+	int endpt2A = bundle[a].endPt2Index;
+	int endpt1B = bundle[b].endPt1Index;
+	float dA2B1 = sqrt(dist(bundle[a].points[endpt2A], bundle[b].points[endpt1B]));
+	
+	float cosAng1 =
+		bundle[a].dir[endpt2A][0] * bundle[b].dir[endpt1B][0] +
+		bundle[a].dir[endpt2A][1] * bundle[b].dir[endpt1B][1] +
+		bundle[a].dir[endpt2A][2] * bundle[b].dir[endpt1B][2];
+
+	float cosAng2 =
+		bundle[a].dir[endpt1A][0] * bundle[b].dir[endpt2B][0] +
+		bundle[a].dir[endpt1A][1] * bundle[b].dir[endpt2B][1] +
+		bundle[a].dir[endpt1A][2] * bundle[b].dir[endpt2B][2];
+
+	if (bundle[a].id == 77 || bundle[a].id == 550 || bundle[a].id == 573)
+	{
+		cout << "a " << bundle[a].id << " b " << bundle[b].id << endl;
+		cout << "cosAngle1 " << cosAng1 << " cosAng2 " << cosAng2 << endl;
+		cout << "distance changed from " << d << " to " << dA2B1 << endl;
+	}
+
+	if ((cosAng1 < -0.9) && (cosAng1 > -1.0))
+	{
+		if ((cosAng2 < -0.9) && (cosAng2 > -1.0))
+		{
+			
+			d = dA2B1;
+		}
+	}
+
+*/
+
+	// Continity  computation
+	
+	//Compute distances. 
+	
+	int closestEndPt1, closestEndPt2;
+	float closestDistance;
+
+	int endpt1A = bundle[a].endPt1Index;
+	int endpt2B = bundle[b].endPt2Index;
+	int endpt2A = bundle[a].endPt2Index;
+	int endpt1B = bundle[b].endPt1Index;
+	float dA1B1 = sqrt(dist(bundle[a].points[endpt1A], bundle[b].points[endpt1B]));
+	float dA1B2 = sqrt(dist(bundle[a].points[endpt1A], bundle[b].points[endpt2B]));
+	float dA2B1 = sqrt(dist(bundle[a].points[endpt2A], bundle[b].points[endpt1B]));
+	float dA2B2 = sqrt(dist(bundle[a].points[endpt2A], bundle[b].points[endpt2B]));
+
+	map<float, pair<int, int>> endPtDistances;
+	endPtDistances[dA1B1] = make_pair(endpt1A, endpt1B);
+	endPtDistances[dA1B2] = make_pair(endpt1A, endpt2B);
+	endPtDistances[dA2B1] = make_pair(endpt2A, endpt1B);
+	endPtDistances[dA2B2] = make_pair(endpt2A, endpt2B);
+
+
+	map<float, pair<int, int> >::iterator it = endPtDistances.begin();
+	pair<int, int> p;
+	p = it->second;
+
+	//if (bundle[a].id == 77 || bundle[a].id == 550 || bundle[a].id == 573)
+	//{
+	//	cout << "a " << bundle[a].id << " b " << bundle[b].id << endl;
+	//	cout << "closest distance " << it->first << " endpts " << p.first << " and " << p.second << endl;
+	//}
+
+	float cosAng1 =
+		bundle[a].dir[p.first][0] * bundle[b].dir[p.second][0] +
+		bundle[a].dir[p.first][1] * bundle[b].dir[p.second][1] +
+		bundle[a].dir[p.first][2] * bundle[b].dir[p.second][2];
+
+	if (cosAng1 < 0.0)
+	{
+		//compute the other angle. 
+		//find the farthest and compute the angle
+		map<float, pair<int, int> >::iterator itEnd = endPtDistances.end();
+		--itEnd; //find the last element
+		p = itEnd->second;
+		//cout << "furhtest distance " << itEnd->first << " endpts " << p.first << " and " << p.second << endl;
+
+		float cosAng2 =
+			bundle[a].dir[p.first][0] * bundle[b].dir[p.second][0] +
+			bundle[a].dir[p.first][1] * bundle[b].dir[p.second][1] +
+			bundle[a].dir[p.first][2] * bundle[b].dir[p.second][2];
+
+
+		if (cosAng2 < 0.0)
+		{
+			//cout << "Distance updated from " << d << " to " << it->first << endl;
+			if ( it->first < d)
+				d = it->first;
+		}
+	}
+	
+}
+// OLD CODE
+inline void compareFibersOld(
 	vector<FIBER> &bundle,
 	EDGE &e,
 	const int a, // fiber index in to the fiber bundle starts from 0.
@@ -3412,8 +3841,180 @@ inline void compareAdvanced(
 		
 	}
 
-	// cout << "distance returned " << d << " using max ? "<< flagUseMax << endl; 
+	//cout << "mean distance AB " << mean_min_distAB << " mean distance BA " << mean_min_distBA << "  d " << d << endl;
+	// cout << "distance returned " << d << " using max ? "<< int(flagUseMax) << endl; 
 	//cout << " AB: " << mean_min_distAB <<", BA: " << mean_min_distBA << ", d: " << d <<endl;
 
 }
 
+
+//
+void correctOrientationEndPointsFiber
+( vector<FIBER> & bundle,
+const int index // fiber index
+)
+{
+	const int fiberSize = bundle[index].points.size();
+	int endpt1A, endpt1B, endpt2A, endpt2B, endpt1APrevious;
+
+	if (fiberSize < 2)
+		return;
+	FIBER f = bundle[index];
+
+	if (f.endPt1Index != 0)
+	{
+		endpt1A = f.endPt1Index;
+		endpt1APrevious = f.endPt1Index - 1; 
+
+		vector <float> vecAB(3, 0.0);
+		for (int d = 0; d < 3; d++)
+		{
+			vecAB[d] = f.points[endpt1APrevious][d] - f.points[endpt1A][d];
+		}
+
+		// magnitude compuatation
+		float magVecAB = 0.0;
+		for (int d = 0; d < 3; d++)
+		{
+			magVecAB = magVecAB +  vecAB[d] * vecAB[d];
+		}
+
+		magVecAB = sqrt(magVecAB);
+
+		if (abs(magVecAB - 0.0) < 0.0001)
+			return;
+
+		float dotPdt = 0.0;
+		for (int d = 0; d < 3; d++)
+		{
+			dotPdt = dotPdt + (vecAB[d]/magVecAB) * f.dir[endpt1A][d];
+		}
+
+		if (dotPdt < 0.0)
+		{
+			for (int d = 0; d < 3; d++)
+			{
+				bundle[index].dir[endpt1A][d] = bundle[index].dir[endpt1A][d] * (-1.0);
+			}
+			//cout << "id " << f.id << " dotpdt negative" << endl;
+		}
+	}
+
+	//change endpt2
+	endpt2A = f.endPt2Index;
+	int endpt2APrevious = endpt2A - 1;
+	vector <float> vecAB(3, 0.0);
+	for (int d = 0; d < 3; d++)
+	{
+		vecAB[d] = f.points[endpt2APrevious][d] - f.points[endpt2A][d];
+	}
+	// magnitude compuatation
+	float magVecAB = 0.0;
+	for (int d = 0; d < 3; d++)
+	{
+		magVecAB = magVecAB + vecAB[d] * vecAB[d];
+	}
+
+	magVecAB = sqrt(magVecAB);
+
+	if (abs(magVecAB - 0.0) < 0.0001)
+		return;
+
+	float dotPdt = 0.0;
+	for (int d = 0; d < 3; d++)
+	{
+		dotPdt = dotPdt + vecAB[d]/magVecAB * f.dir[endpt2A][d];
+	}
+	if (dotPdt < 0.0)
+	{
+		for (int d = 0; d < 3; d++)
+		{
+			bundle[index].dir[endpt2A][d] = bundle[index].dir[endpt2A][d] * (-1.0);
+		}
+	}
+}
+void correctOrientationEndPointsBundle(vector<FIBER> &bundle)
+{
+	const int numberOfFibers = bundle.size();
+	for (int f = 0; f < numberOfFibers; f++)
+	{
+		correctOrientationEndPointsFiber(bundle, f);
+	}
+}
+
+// Average orientation at the end points fiber
+void averageOrientationEndPointsFiber(
+	vector<FIBER> &bundle, const int index)
+{
+	const int fiberSize = bundle[index].points.size();
+	const FIBER f = bundle[index];
+
+	if (fiberSize < 2){
+		cerr << "Error in averageOrientationEndPointsFiber" << endl;
+		exit(0);
+	}
+	if (f.endPt1Index != 0)
+	{
+		vector<float> tempDir(3, 0.0);
+		// orientaion at 0
+		for (int d = 0; d < 3; d++)
+		{
+			tempDir[d] = tempDir[d] + f.dir[f.endPt1Index][d];
+		}
+		// Orientation at 1
+		for (int d = 0; d < 3; d++)
+		{
+			tempDir[d] = tempDir[d] + f.dir[f.endPt1Index - 1][d];
+		}
+		//set endpoint1 
+		for (int d = 0; d < 3; d++)
+		{
+			bundle[index].dir[f.endPt1Index][d] = tempDir[d] / 2.0;
+		}
+		//DEBUG 
+		if (f.id == 77 || f.id == 550 || f.id == 573)
+		{
+			cout << "id " << f.id << endl;
+			cout << f.endPt1Index << " , " << f.endPt1Index - 1 << " || " 
+				<< bundle[index].dir[f.endPt1Index][0] << " " << bundle[index].dir[f.endPt1Index][1]
+				<< " " << bundle[index].dir[f.endPt1Index][2] << endl;
+		}	
+	}
+	
+	if (f.endPt1Index == 0)
+	{
+		cout << "id " << f.id << endl;
+		vector<float> tempDir(3, 0.0);
+		for (int d = 0; d < 3; d++)
+		{
+			tempDir[d] = tempDir[d] + f.dir[f.endPt1Index][d];
+			// Note the f.endpt1Index + 1 has the same direction just in the opposite direction
+			// so we use the +2
+			tempDir[d] = tempDir[d] + f.dir[f.endPt1Index + 2][d]*(-1.0);
+		}
+		for (int d = 0; d < 3; d++)
+		{
+			bundle[index].dir[f.endPt1Index][d] = tempDir[d] / 2.0;
+		}
+	}
+	// Set the endpt2
+	vector<float> tempDir(3, 0.0);
+	for (int d = 0; d < 3; d++)
+	{
+		tempDir[d] = tempDir[d] + f.dir[f.endPt2Index][d];
+		tempDir[d] = tempDir[d] + f.dir[f.endPt2Index - 1][d];
+	}
+	for (int d = 0; d < 3; d++)
+	{
+		bundle[index].dir[f.endPt2Index][d] = tempDir[d] / 2.0;
+	}
+}
+//AverageOrientationEndPointsBundle
+void averageOrientationEndPointsBundle(vector<FIBER> &bundle)
+{
+	const int numberOfFibers = bundle.size();
+	for (int f = 0; f < numberOfFibers; f++)
+	{
+		averageOrientationEndPointsFiber(bundle, f);
+	}
+}

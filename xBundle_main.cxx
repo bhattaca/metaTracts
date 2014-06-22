@@ -340,7 +340,10 @@ int performComputations(INPUT_PARAMS * input)
 
 
 			if (!input->computeKmeans && bundle.size() > 0){
+				cerr << " Compute Distances time: start  " << currentDateTime() << endl;
 				compute_distances(input, bundle, graph);
+				cerr << " Compute Distances time: end  " << currentDateTime() << endl;
+
 				//compute_distances_threaded(input, bundle);
 				//cout <<"write to graph "<<graph1.size()<<endl;
 				//write_graph(graph1, input->graph2FileName);
@@ -348,6 +351,7 @@ int performComputations(INPUT_PARAMS * input)
 			}
 		}
 		cerr << "fiber bundles detected!" << endl;
+		cerr << "END TIME " << currentDateTime() << endl;
 
 		//for (int m=0;m<bundle.size();m++)
 		//{
