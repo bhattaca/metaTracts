@@ -262,17 +262,26 @@ void computeSecOrderness(const DoubleVectorType &eigenVal, const bool debug, dou
 
 }
 // function to compute the eigen vals and eigen vectors 
-void  computeVesselness(const DoubleVectorType &eigenVal, const DoubleMatrixType &eigenMatrix, const bool debug, const float secT, double &vness)
+void  computeVesselness(
+	const DoubleVectorType &eigenVal,
+	const DoubleMatrixType &eigenMatrix,
+	const bool debug,
+	const float secT,
+	double &vness)
 {
-
 	if (eigenVal[1] < 0.0 || eigenVal[2] < 0.0)
 	{
 		double RA = 0.0, RB = 0.0;
 		computeRA(eigenVal, debug, RA);
 		computeRB(eigenVal, debug, RB);
-		//double secOrderness = 0.0;
-		//computeSecOrderness(eigenVal, debug, secOrderness);
-		vness = (1.0 - exp(-(RA*RA) / (2 * 0.25)))*(exp(-(RB*RB) / (2 * 0.25)));//*(1.0-exp(-(secOrderness*secOrderness)/(2*250.0)));
+
+		//DEBUG JUly 4th 
+
+		double secOrderness = 0.0;
+		computeSecOrderness(eigenVal, debug, secOrderness);
+		//vness = (1.0 - exp(-(RA*RA) / (2 * 0.25)))*(exp(-(RB*RB) / (2 * 0.25)));//*(1.0-exp(-(secOrderness*secOrderness)/(2*250.0)));
+
+		vness = (1.0 - exp(-(RA*RA) / (2 * 0.5)))*(exp(-(RB*RB) / (2 * 0.5)))*(1.0 - exp(-(secOrderness*secOrderness) / (2 * 10.0)));
 
 		/*		if (false)
 		{
@@ -347,16 +356,16 @@ void computeAngle(const DoubleMatrixType &m1, DoubleMatrixImageType::IndexType t
 	}
 	else
 	{
-		A =  acos(dotPdt) * 180.0 / M_PI;
+		A = acos(dotPdt) * 180.0 / M_PI;
 	}
 	/*
 	if (dotPdt < 0.0)
 	{
-		dotPdt = 0.0f;
-		for (int i = 0; i < 3; i++)
-		{
-			dotPdt = dotPdt + (m1[0][i] * m2[0][i] * (-1.0));
-		}
+	dotPdt = 0.0f;
+	for (int i = 0; i < 3; i++)
+	{
+	dotPdt = dotPdt + (m1[0][i] * m2[0][i] * (-1.0));
+	}
 	}
 
 	A = acos(dotPdt) * 180.0 / M_PI;
@@ -454,11 +463,11 @@ void setStartPointsFromConfig(
 	int numOfPoints = startLocations.size() / 3;
 	for (int i = 0; i < numOfPoints; i++)
 	{
-		vector <int> temp (3,0); 
+		vector <int> temp(4, 0);
 		temp[0] = startLocations[3 * i + 0];
 		temp[1] = startLocations[3 * i + 1];
 		temp[2] = startLocations[3 * i + 2];
-		int spacings = 5;
+		int spacings = 3;
 		vector <int> radius(3, 0);
 		radius[0] = 10;
 		radius[1] = 10;
@@ -468,7 +477,7 @@ void setStartPointsFromConfig(
 }
 
 //Function to compute the average orientation at each location.
-void computeAverageOrientation( vector<FIBER> & bundle)
+void computeAverageOrientation(vector<FIBER> & bundle)
 {
 	int bundleSise = bundle.size();
 	for (int n = 0; n < bundleSise; n++)
@@ -477,10 +486,10 @@ void computeAverageOrientation( vector<FIBER> & bundle)
 		if (fiberSize < 2)
 			continue;
 		//temporary vector to store the average orientaions
-		vector< vector<float> > tempAvgOrientation(fiberSize, vector<float>(3,0.0));
+		vector< vector<float> > tempAvgOrientation(fiberSize, vector<float>(3, 0.0));
 
 		//Orientation at first point is the average of the first and second point. 
-		vector<float> tempDir(3,0.0);
+		vector<float> tempDir(3, 0.0);
 		for (int i = 0; i < 2; i++)
 		{
 			for (int d = 0; d < 3; d++)
@@ -505,14 +514,14 @@ void computeAverageOrientation( vector<FIBER> & bundle)
 			{
 				tempDir[d] = tempDir[d] + bundle[n].dir[fiberSize - i - 1][d];
 			}
-	
+
 		}
 		for (int d = 0; d < 3; d++)
 		{
 			//bundle[n].dir[fiberSize - 1][d] = tempDir[d] / 2.0;
 			tempAvgOrientation[fiberSize - 1][d] = tempDir[d] / 2.0;
 		}
-		
+
 
 		//
 		for (int p = 1; p < fiberSize - 1; p++)
@@ -677,7 +686,7 @@ void colorTrack(RGBImageTypePointer &rgbEigen, vector<FIBER> &bundle, const int 
 		//{
 		//	color[2] = abs(bundle[id].dir[bundle[id].endPt1Index][2]) * 255;
 		//}
-		
+
 
 		rgbEigen->SetPixel(idx, color);
 	}
@@ -699,7 +708,7 @@ void colorTrackID(intImageTypePointer &rgbEigen, vector<FIBER> &bundle, const in
 			idx[d] = bundle[id].allPoints[i][d];
 		}
 
-		rgbEigen->SetPixel(idx, bundle[id].id);
+		rgbEigen->SetPixel(idx, bundle[id].id);// its colored according to id 
 	}
 }
 
@@ -731,7 +740,7 @@ void colorTrack(RGBImageTypePointer &rgbEigen,
 	const int clusterInd,
 	const int id)
 {
-	
+
 	int m = id;
 
 	unsigned char color[3] = { 0, 0, 0 };
@@ -844,7 +853,7 @@ void colorTrack(RGBImageTypePointer &rgbEigen,
 		return;
 	}
 
-	cout << "In color track "<<id <<" -- " << bundle[id].id << " cluster " << clusterInd << " color "
+	cout << "In color track " << id << " -- " << bundle[id].id << " cluster " << clusterInd << " color "
 		<< int(color[0]) << " " << int(color[1]) << " " << int(color[2])
 		<< " total size  " << bundle[id].allPoints.size() << endl;
 	for (int i = 0; i < bundle[id].allPoints.size(); i++)
@@ -863,12 +872,17 @@ typedef itk::Image< RGBPixelIntType, 3 >  RGBPixelIntImageType;
 typedef RGBPixelIntImageType::Pointer          RGBIntImageTypePointer;
 typedef itk::ImageRegionIterator< RGBPixelIntImageType > RGBIntIteratorType;
 
+
+
+
+
 // function to  voxelize space
 // rgbEigen  : each set of cluster fibers have the same integer color value
 // bundle : fiber cluster information
 // possible seed locations
 // anisoPnt: result of anisotropic diffusion 
-void voxelizeSpace(intImageTypePointer &rgbEigen,
+void voxelizeSpace(
+	intImageTypePointer &rgbEigen,
 	vector<FIBER> &bundle,
 	const boolImagePointer &possibleSeeds,
 	const ImageType::Pointer &anisoPnt)
@@ -878,7 +892,7 @@ void voxelizeSpace(intImageTypePointer &rgbEigen,
 	// need the actual data
 	intIteratorType it(rgbEigen, rgbEigen->GetLargestPossibleRegion());
 	it.GoToBegin();
-	int spacing = 2;
+	int spacing = 1;
 	vector <int> radius(3, 2);
 	vector <vector<int> >nearPts;
 	// list of indices and the corresponding colors
@@ -905,16 +919,18 @@ void voxelizeSpace(intImageTypePointer &rgbEigen,
 				vidx[1] = idx[1];
 				vidx[2] = idx[2];
 				nearPts.clear();
+
 				findNearPts(vidx, spacing, radius, nearPts);
 
 				vector <pair<int, int> > hist;
 				hist.clear();
-				for (int i = 0; i<nearPts.size(); i++){
+				for (int i = 0; i < nearPts.size(); i++){
 					idx[0] = nearPts[i][0];
 					idx[1] = nearPts[i][1];
 					idx[2] = nearPts[i][2];
 					// if neighbor is in side the volume and clustered
-					if (rgbEigen->GetLargestPossibleRegion().IsInside(idx) &&
+					if (rgbEigen->GetLargestPossibleRegion().IsInside(idx)
+						&&
 						rgbEigen->GetPixel(idx) > 0)
 					{
 						//check if the id has been seen before
@@ -1194,7 +1210,7 @@ void trackPoint2Debug(DoubleMatrixImagePointer &m_Output,
 			DoubleMatrixType m = m_Output->GetPixel(idx);
 
 			// first one way then the other to get the entire thing.
-			
+
 			if (dir == 0 && firstRun){
 				for (int k = 0; k < 3; k++)
 				{
@@ -1203,35 +1219,35 @@ void trackPoint2Debug(DoubleMatrixImagePointer &m_Output,
 
 				firstRun = false;
 			}
-			
+
 
 			//if true then the vector is dir is reversed in the first run, no need to do it for dir ==1
 			//else for dir == 1 must reverse vector
 			/*
 			if (firstRun && dir == 0){
-					if (m[0][2] < 0.0)
-					{
-						reverseVector = true; 
-					}
-				
-				if (reverseVector){
-					for (int d = 0; d < 3; d++)
-					{
-						m[0][d] = m[0][d] * -1.0;
-					}
-				}
+			if (m[0][2] < 0.0)
+			{
+			reverseVector = true;
+			}
 
-				firstRun = false;
+			if (reverseVector){
+			for (int d = 0; d < 3; d++)
+			{
+			m[0][d] = m[0][d] * -1.0;
+			}
+			}
+
+			firstRun = false;
 			}
 			if (firstRun  && dir == 1){
-				if (!reverseVector)
-				{
-					for (int d = 0; d < 3; d++)
-					{
-						m[0][d] = m[0][d] * -1.0;
-					}
-				}
-				firstRun = false;
+			if (!reverseVector)
+			{
+			for (int d = 0; d < 3; d++)
+			{
+			m[0][d] = m[0][d] * -1.0;
+			}
+			}
+			firstRun = false;
 			}
 			*/
 			//cout << "dir " << dir << endl;
@@ -1302,7 +1318,7 @@ void trackPoint2Debug(DoubleMatrixImagePointer &m_Output,
 
 					// inside the cylinder
 					//if (perpDist > 0.5 && perpDist < 4.0 && horrDist < 2.0)
-					if (perpDist > 4.5 && perpDist < input->cylLength && horrDist < input->cylRadius)
+					if (perpDist > 2.5 && perpDist < input->cylLength && horrDist < input->cylRadius)
 					{
 
 						//if (dir==0){
@@ -1337,9 +1353,9 @@ void trackPoint2Debug(DoubleMatrixImagePointer &m_Output,
 						if (angle < 8.0){
 
 							float combinedD = 0.0;
-							//combinedD = 0.33*exp(-angle*angle / 5.0) + 0.66*(1 - exp(-perpDist*perpDist / 4.0));
+							combinedD = 0.33*exp(-angle*angle / 5.0) + 0.66*(1 - exp(-perpDist*perpDist / 4.0));
 							//DEBUG
-							combinedD = 0.33*exp(-angle*angle / 5.0) + 0.66*(1 - exp(-perpDist*perpDist / 10.0));
+							//combinedD = 0.33*exp(-angle*angle / 5.0) + 0.66*(1 - exp(-perpDist*perpDist / 10.0));
 							pair<float, vector<int> > a = make_pair((combinedD), vecTmpIdx);
 							pq.push(a);
 							//check if anything is added in this turn
@@ -1368,11 +1384,11 @@ void trackPoint2Debug(DoubleMatrixImagePointer &m_Output,
 			{
 				flagExpand = false;
 				if (dir == 0){
-					f.endPt1Index = f.points.size()-1;
+					f.endPt1Index = f.points.size() - 1;
 				}
 				else
 				{
-					f.endPt2Index = f.points.size()-1;
+					f.endPt2Index = f.points.size() - 1;
 				}
 
 				// DEBUG
@@ -1388,8 +1404,8 @@ void trackPoint2Debug(DoubleMatrixImagePointer &m_Output,
 	if (len > input->minFiberLength)
 	{
 
-		cout << "trackID " << trackId[0] << " " << trackId[1] << " " << trackId[2];
-		cout << " track num " << trackNum << endl;
+		//cout << "trackID " << trackId[0] << " " << trackId[1] << " " << trackId[2];
+		//cout << " track num " << trackNum << endl;
 
 		bundle.push_back(f);
 		trackNum++;
@@ -2135,7 +2151,7 @@ void hessian_based_computation(INPUT_PARAMS * input,
 	const string A = "D:/ABhattacharya/Internship/data/BrenardData1Crops/crop1/crop1.mhd";
 	const char * B = input->inputFileName.c_str();
 
-	
+
 	reader->SetFileName(B);
 	reader->Update();
 	cerr << "status: reading complete." << endl;
@@ -2270,6 +2286,10 @@ void hessian_based_computation(INPUT_PARAMS * input,
 	vector <int> tempIndex(3, 0);
 	double expThSecOrderness = 40.0;
 	//datafile << "x,y,z\n";
+
+	float maxTempC = 0.0;
+
+
 	while (!inIt.IsAtEnd())
 	{
 		eig.SetOrderEigenMagnitudes(true);
@@ -2302,6 +2322,15 @@ void hessian_based_computation(INPUT_PARAMS * input,
 
 			//compute vesselness
 			computeVesselness(eigenVal, eigenMatrix, false, expThSecOrderness, vness);
+
+			float tempC = 0.0;
+			for (int k = 0; k < 3; k++)
+			{
+				tempC = tempC + eigenVal[k] * eigenVal[k];
+			}
+			if (sqrt(tempC) > maxTempC)
+				maxTempC = tempC;
+
 			// if the input is greater than the threhold.
 			if (vness > input->vness)
 			{
@@ -2314,10 +2343,11 @@ void hessian_based_computation(INPUT_PARAMS * input,
 				oIt.Set(eigenMatrix);
 				seedIt.Set(true);
 				unsigned tempCol[3] = { 27, 158, 119 };
+
 				if (!input->colorTrack)
 				for (int i = 0; i < Dimension; i++)
 				{
-					color[i] = 219 * abs(eigenMatrix[0][i]);
+					color[i] = 255.0 * abs(eigenMatrix[0][i]);
 				}
 				rgbIt.Set(color); // set the color of the eigen matrix
 			}
@@ -2342,6 +2372,8 @@ void hessian_based_computation(INPUT_PARAMS * input,
 		++seedIt;
 	}
 	cerr << "All hessians completed" << endl;
+	cerr << "max norm of hessian matrix  " << maxTempC << endl;
+	cerr << " TRACK POINT " << input->trackPoint << endl;
 	/*
 	for (int i=0;i<vnessVec.size();i++)
 	vnessFile <<vnessVec[i]<<"\n";
@@ -2350,9 +2382,9 @@ void hessian_based_computation(INPUT_PARAMS * input,
 	if (input->trackPoint){
 		ImageType::IndexType idx;
 		int ii, jj, kk;
-		ii = 162;
-		jj = 100;
-		kk = 244;
+		ii = 218;
+		jj = 59;
+		kk = 219;
 
 
 		//crop6 150,175,150, 15 17 15 10 spacing
@@ -2368,82 +2400,21 @@ void hessian_based_computation(INPUT_PARAMS * input,
 		vidx[1] = jj;
 		vidx[2] = kk;
 		//
-		int spacings = 4;
+		int spacings = 8;
 		vector <int> radius(3, 0);
 		//radius[0]=20;
 		//radius[1]=10;
 		//radius[2]=15;
 		//test
-		radius[0] = 7;//40;
-		radius[1] = 7;//22;
-		radius[2] = 7;//34;
+		radius[0] = 28;//40;
+		radius[1] = 20;//22;
+		radius[2] = 30;//34;
 		//3,3,10
 		//20,11,17
 		vector <vector<int> >nearPts;
-		//DEBUG
-		//findNearPts(vidx, spacings, radius, nearPts);
 
-		vector<int> nearPtTemp(3, 0);
-		nearPtTemp[0] = 162;
-		nearPtTemp[1] = 100;
-		nearPtTemp[2] = 68;
-
-		//findNearPts(nearPtTemp, spacings, radius, nearPts);
-		/*
-		nearPtTemp[0] = 162; nearPtTemp[1] = 70; nearPtTemp[2] = 84;
-		findNearPts(nearPtTemp, spacings, radius, nearPts);
-
-		nearPtTemp[0] = 162; nearPtTemp[1] = 70; nearPtTemp[2] = 249;
-		findNearPts(nearPtTemp, spacings, radius, nearPts);
-
-
-		nearPtTemp[0] = 162; nearPtTemp[1] = 70; nearPtTemp[2] = 167;
-		findNearPts(nearPtTemp, spacings, radius, nearPts);
-
-		nearPtTemp[0] = 162; nearPtTemp[1] = 70; nearPtTemp[2] = 42;
-		findNearPts(nearPtTemp, spacings, radius, nearPts);
-
-		nearPtTemp[0] = 162; nearPtTemp[1] = 115; nearPtTemp[2] = 263;
-		findNearPts(nearPtTemp, spacings, radius, nearPts);
-
-		nearPtTemp[0] = 162; nearPtTemp[1] = 116; nearPtTemp[2] = 47;
-		findNearPts(nearPtTemp, spacings, radius, nearPts);
-
-		nearPtTemp[0] = 162; nearPtTemp[1] = 27; nearPtTemp[2] = 161;
-		findNearPts(nearPtTemp, spacings, radius, nearPts);
-
-
-		nearPtTemp[0] = 45; nearPtTemp[1] = 129; nearPtTemp[2] = 167;
-		findNearPts(nearPtTemp, spacings, radius, nearPts);
-
-		nearPtTemp[0] = 43; nearPtTemp[1] = 125; nearPtTemp[2] = 155;
-		findNearPts(nearPtTemp, spacings, radius, nearPts);
-
-		nearPtTemp[0] = 342; nearPtTemp[1] = 71; nearPtTemp[2] = 167;
-		findNearPts(nearPtTemp, spacings, radius, nearPts);
-
-		nearPtTemp[0] = 299; nearPtTemp[1] = 47; nearPtTemp[2] = 155;
-		findNearPts(nearPtTemp, spacings, radius, nearPts);
-		*/
-		//
-		nearPtTemp[0] = 162;
-		nearPtTemp[1] = 70;
-		nearPtTemp[2] = 293;
-
-		nearPts.push_back(nearPtTemp);
-
-		nearPtTemp[0] = 162;
-		nearPtTemp[1] = 70;
-		nearPtTemp[2] = 285;
-
-		nearPts.push_back(nearPtTemp);
-		//
-		nearPtTemp[0] = 176;
-		nearPtTemp[1] = 70;
-		nearPtTemp[2] = 64;
-
-		nearPts.push_back(nearPtTemp);
-
+		findNearPts(vidx, spacings, radius, nearPts);
+		cerr << "Total number of start points : " << nearPts.size() << endl;
 		//read the start points if any from the config file.
 		vector <vector<int> > configStartPts;
 		if (!input->startLocations.empty())
@@ -2451,7 +2422,7 @@ void hessian_based_computation(INPUT_PARAMS * input,
 			setStartPointsFromConfig(input->startLocations, configStartPts);
 			cerr << "Total number of start points : " << configStartPts.size() << endl;
 		}
-		
+
 
 		cerr << "number of seeds " << nearPts.size() << endl;
 		int tot = configStartPts.size();
@@ -2464,18 +2435,47 @@ void hessian_based_computation(INPUT_PARAMS * input,
 			idx[1] = configStartPts[i][1];
 			idx[2] = configStartPts[i][2];
 
-
-			cerr << (i*1.0 / configStartPts.size()) * 100.0 << " percent done [" << i << " out of " << configStartPts.size() << "]";
-			cerr << " idx " << idx[0] << " " << idx[1] << " " << idx[2] << endl;
-				//cout <<i<<" out of "<<tot <<endl; 
+			//cout <<i<<" out of "<<tot <<endl; 
 			//cout <<"start " << idx << " value " << aniso_filter->GetOutput()->GetPixel(idx) << endl;
 			if (region.IsInside(idx))
 			if (aniso_filter->GetOutput()->GetPixel(idx) > input->thresh && possibleSeeds->GetPixel(idx))
 			{
-				trackPoint2Debug( m_Output, input, idx, j, rgbEigen, possibleSeeds, bundle);
+				if (int((i*1.0 / configStartPts.size()) * 100.0) % 10 == 0){
+					cerr << (i*1.0 / configStartPts.size()) * 100.0 << " percent done [" << i << " out of " << configStartPts.size() << "]";
+					cerr << " Num fibers " << bundle.size() << endl;
+				}
+				trackPoint2Debug(m_Output, input, idx, j, rgbEigen, possibleSeeds, bundle);
 				startLocs->SetPixel(idx, 255);
+				if (bundle.size() > 4000)
+					break;
 			}
 		}
+
+		//
+
+		for (int i = 0; i< nearPts.size(); i++){
+			idx[0] = nearPts[i][0] + rand() % 4;
+			idx[1] = nearPts[i][1] + rand() % 4;
+			idx[2] = nearPts[i][2] + rand() % 4;
+			cerr << (i*1.0 / nearPts.size()) * 100.0 << " percent done [" << i << " out of " << nearPts.size() << "] Round 2";
+			cerr << " idx " << idx[0] << " " << idx[1] << " " << idx[2] << " Num fibers " << bundle.size() << endl;
+			//cout <<i<<" out of "<<tot <<endl;
+			//cout <<"start " << idx << " value " << aniso_filter->GetOutput()->GetPixel(idx) << endl;
+			if (region.IsInside(idx))
+			if (aniso_filter->GetOutput()->GetPixel(idx) > input->thresh && possibleSeeds->GetPixel(idx))
+			{
+				trackPoint2Debug(m_Output, input, idx, j, rgbEigen, possibleSeeds, bundle);
+				startLocs->SetPixel(idx, 255);
+				if (bundle.size() > 8000)
+					break;
+			}
+		}
+
+
+
+
+
+
 		cerr << " Compute fibers time: end  " << currentDateTime() << endl;
 		cerr << "number of small fibers " << smallFiberNum << endl;
 		cerr << "number of large fibers " << j - 1 << endl;
@@ -2544,7 +2544,7 @@ void hessian_based_computation(INPUT_PARAMS * input,
 						}
 
 					}
-					// debug
+
 					// color according to cluster 
 					cerr << " in color cluster " << endl;
 					ofstream fo("fiber_out.txt");
@@ -2559,12 +2559,14 @@ void hessian_based_computation(INPUT_PARAMS * input,
 
 					cout << " before voxelize  Here" << endl;
 					// ***DEBUG***
-					/*
+					/*if (input->colorVol)
+					{
 					voxelizeSpace(clusterIDS, bundle, possibleSeeds,
 					anisoPnt);
-
 					cout << "voxelize complete" << endl;
-					*/
+					}*/
+
+
 
 					/*
 					// ***DEBUG***
@@ -2750,33 +2752,35 @@ void hessian_based_computation(INPUT_PARAMS * input,
 					//
 
 					//debug
+					/*
 					if (input->colorVol)
 					{
 
-						RGBIntImageTypePointer rgbVol = RGBPixelIntImageType::New();
-						unsigned char color[3] = { 0, 0, 0 };
-						rgbVol->SetRegions(region);
-						rgbVol->SetOrigin(origin);
-						rgbVol->SetSpacing(spacing);
-						rgbVol->Allocate();
-						rgbVol->FillBuffer(color);
-						cerr << "com[puting color volume" << endl;
-						colorVolume(rgbEigen, rgbVol, possibleSeeds, anisoPnt);
-						cerr << "writing color volume" << endl;
-						typedef itk::ImageFileWriter< RGBPixelIntImageType > RGBWriterType;
-						RGBWriterType::Pointer   writer = RGBWriterType::New();
-						writer->SetInput(rgbVol);
-						writer->SetFileName(input->bundleVolFname);
-						try
-						{
-							writer->Update();
-						}
-						catch (itk::ExceptionObject e)
-						{
-							std::cerr << "Error: " << e << std::endl;
-						}
+					RGBIntImageTypePointer rgbVol = RGBPixelIntImageType::New();
+					unsigned char color[3] = { 0, 0, 0 };
+					rgbVol->SetRegions(region);
+					rgbVol->SetOrigin(origin);
+					rgbVol->SetSpacing(spacing);
+					rgbVol->Allocate();
+					rgbVol->FillBuffer(color);
+					cerr << "com[puting color volume" << endl;
+					colorVolume(rgbEigen, rgbVol, possibleSeeds, anisoPnt);
+					cerr << "writing color volume" << endl;
+					typedef itk::ImageFileWriter< RGBPixelIntImageType > RGBWriterType;
+					RGBWriterType::Pointer   writer = RGBWriterType::New();
+					writer->SetInput(rgbVol);
+					writer->SetFileName(input->bundleVolFname);
+					try
+					{
+					writer->Update();
+					}
+					catch (itk::ExceptionObject e)
+					{
+					std::cerr << "Error: " << e << std::endl;
+					}
 
 					}
+					*/
 				}
 				else
 					// no kmeans
@@ -3192,15 +3196,13 @@ void compute_distances(const INPUT_PARAMS  * input, vector<FIBER> &bundle, vecto
 	int M = bundle.size();
 	for (int m = 0; m < M - 1; m++)
 	{
-		if (int((m*1.0 / M) * 100) % 20 == 0)
-			cerr << int((m*1.0 / M) * 100) << " percent done." << endl;
+		cerr << int((m*1.0 / M) * 100) << " percent done." << endl;
 
 		for (int n = m + 1; n < M; n++)
 		{
 			/*cout <<"**********************\n";*/
 
-			/*cout << "comparing " << m << "[" << bundle[m].id << "]"
-				<< "  with " << n << "[" << bundle[n].id << "] \n";*/
+
 			float d = 0.0;
 			EDGE a;
 			//compare(bundle,a, m, n, d);
@@ -3408,7 +3410,7 @@ inline void compareFibers(
 	const int a, // fiber index in to the fiber bundle starts from 0.
 	const int b, // fiber index
 	float & d,
-	bool & flagUseMax // if true use the maximum of the distances.
+	bool & flag // if true use end pts
 	)
 {
 
@@ -3422,11 +3424,11 @@ inline void compareFibers(
 	int ClosestPointInB = 0;
 
 
-	for (int k = 0; k < M; k++)
-	{	
-		float D=0.0;
-		int tempNode2_loc; 
-		for (int l = 0; l < N; l++)
+	for (int k = 0; k < M; k = k + 2)
+	{
+		float D = 0.0;
+		int tempNode2_loc;
+		for (int l = 0; l < N; l = l + 2)
 		{
 			float tempD = sqrt(dist(bundle[a].points[k], bundle[b].points[l]));
 			if (l == 0)
@@ -3443,7 +3445,7 @@ inline void compareFibers(
 			}
 		}
 
-		if (k == 0){ 
+		if (k == 0){
 			combinedShortestDist = D;
 			e.node1_loc = 0;
 			e.node2_loc = tempNode2_loc;
@@ -3458,7 +3460,7 @@ inline void compareFibers(
 			}
 		}
 		// threshold
-		if (D > 2.0)
+		if (D > 3.0)
 		{
 			tot = tot + D;
 			num++;
@@ -3490,39 +3492,39 @@ inline void compareFibers(
 	int endpt2A = bundle[a].endPt2Index;
 	int endpt1B = bundle[b].endPt1Index;
 	float dA2B1 = sqrt(dist(bundle[a].points[endpt2A], bundle[b].points[endpt1B]));
-	
+
 	float cosAng1 =
-		bundle[a].dir[endpt2A][0] * bundle[b].dir[endpt1B][0] +
-		bundle[a].dir[endpt2A][1] * bundle[b].dir[endpt1B][1] +
-		bundle[a].dir[endpt2A][2] * bundle[b].dir[endpt1B][2];
+	bundle[a].dir[endpt2A][0] * bundle[b].dir[endpt1B][0] +
+	bundle[a].dir[endpt2A][1] * bundle[b].dir[endpt1B][1] +
+	bundle[a].dir[endpt2A][2] * bundle[b].dir[endpt1B][2];
 
 	float cosAng2 =
-		bundle[a].dir[endpt1A][0] * bundle[b].dir[endpt2B][0] +
-		bundle[a].dir[endpt1A][1] * bundle[b].dir[endpt2B][1] +
-		bundle[a].dir[endpt1A][2] * bundle[b].dir[endpt2B][2];
+	bundle[a].dir[endpt1A][0] * bundle[b].dir[endpt2B][0] +
+	bundle[a].dir[endpt1A][1] * bundle[b].dir[endpt2B][1] +
+	bundle[a].dir[endpt1A][2] * bundle[b].dir[endpt2B][2];
 
 	if (bundle[a].id == 77 || bundle[a].id == 550 || bundle[a].id == 573)
 	{
-		cout << "a " << bundle[a].id << " b " << bundle[b].id << endl;
-		cout << "cosAngle1 " << cosAng1 << " cosAng2 " << cosAng2 << endl;
-		cout << "distance changed from " << d << " to " << dA2B1 << endl;
+	cout << "a " << bundle[a].id << " b " << bundle[b].id << endl;
+	cout << "cosAngle1 " << cosAng1 << " cosAng2 " << cosAng2 << endl;
+	cout << "distance changed from " << d << " to " << dA2B1 << endl;
 	}
 
 	if ((cosAng1 < -0.9) && (cosAng1 > -1.0))
 	{
-		if ((cosAng2 < -0.9) && (cosAng2 > -1.0))
-		{
-			
-			d = dA2B1;
-		}
+	if ((cosAng2 < -0.9) && (cosAng2 > -1.0))
+	{
+
+	d = dA2B1;
+	}
 	}
 
-*/
+	*/
 
 	// Continity  computation
-	
+
 	//Compute distances. 
-	
+
 	int closestEndPt1, closestEndPt2;
 	float closestDistance;
 
@@ -3575,11 +3577,14 @@ inline void compareFibers(
 		if (cosAng2 < 0.0)
 		{
 			//cout << "Distance updated from " << d << " to " << it->first << endl;
-			if ( it->first < d)
+			if (it->first < d)
+			{
 				d = it->first;
+				flag = true;
+			}
 		}
 	}
-	
+
 }
 // OLD CODE
 inline void compareFibersOld(
@@ -3587,11 +3592,11 @@ inline void compareFibersOld(
 	EDGE &e,
 	const int a, // fiber index in to the fiber bundle starts from 0.
 	const int b, //fiber index
-	float & d, 
+	float & d,
 	bool & flagUseMax // if true use the maximum of the distances.
 	)
 {
-	
+
 	float tot = 0.0;
 	float combinedShortestDist = 10000000.0;
 	int M = bundle[a].points.size(); //size of fiber a
@@ -3604,42 +3609,42 @@ inline void compareFibersOld(
 	/*
 	for (int k = 0; k < M; k++)
 	{
-		float D = 999999999.0;
-		int  TempClosestPointInB = 0;
-		for (int l = 0; l < N; l++)
-		{
-			float tempD = sqrt(dist(bundle[a].points[k], bundle[b].points[l]));
-			if (l == 0)
-			{
-				D = tempD;
-			}
-			if (tempD - D < 0.001)
-			{
-				D = tempD;
-				TempClosestPointInB = l;
-			}
-		} // end for fiber B
+	float D = 999999999.0;
+	int  TempClosestPointInB = 0;
+	for (int l = 0; l < N; l++)
+	{
+	float tempD = sqrt(dist(bundle[a].points[k], bundle[b].points[l]));
+	if (l == 0)
+	{
+	D = tempD;
+	}
+	if (tempD - D < 0.001)
+	{
+	D = tempD;
+	TempClosestPointInB = l;
+	}
+	} // end for fiber B
 
-		//float cosTheta = bundle[a].dir[k][0] * bundle[b].dir[TempClosestPointInB][0] +
-		//	bundle[a].dir[k][1] * bundle[b].dir[TempClosestPointInB][1] +
-		//	bundle[a].dir[k][2] * bundle[b].dir[TempClosestPointInB][2];
-		//float sinTheta = sqrt(1 - cosTheta*cosTheta);
-	
+	//float cosTheta = bundle[a].dir[k][0] * bundle[b].dir[TempClosestPointInB][0] +
+	//	bundle[a].dir[k][1] * bundle[b].dir[TempClosestPointInB][1] +
+	//	bundle[a].dir[k][2] * bundle[b].dir[TempClosestPointInB][2];
+	//float sinTheta = sqrt(1 - cosTheta*cosTheta);
 
-		//cout << " " << D<<"{"<< TempClosestPointInB<<"} ";
-		//DEBUG
-		total = total + D;
 
-		//total = total + D + D*sinTheta;
-		//total = total + D*sinTheta;
+	//cout << " " << D<<"{"<< TempClosestPointInB<<"} ";
+	//DEBUG
+	total = total + D;
 
-		if (D - combinedShortestDist < 0.001)
-		{
-			combinedShortestDist = D;
-			ClosestPointInA = k;
-			ClosestPointInB = TempClosestPointInB;
-		}
-	} // for end 
+	//total = total + D + D*sinTheta;
+	//total = total + D*sinTheta;
+
+	if (D - combinedShortestDist < 0.001)
+	{
+	combinedShortestDist = D;
+	ClosestPointInA = k;
+	ClosestPointInB = TempClosestPointInB;
+	}
+	} // for end
 	d = total / M;
 	e.node1_loc = ClosestPointInA;
 	e.node2_loc = ClosestPointInB;
@@ -3650,15 +3655,15 @@ inline void compareFibersOld(
 	//float tempDistanceBetweenEndPoints = sqrt(dist(bundle[a].points[bundle[a].endPt1Index],
 	//	bundle[b].points[bundle[b].endPt2Index]));
 	//cout << "Distance between endpt " << bundle[a].endPt1Index << " and " << bundle[b].endPt2Index << " is " << tempDistanceBetweenEndPoints << endl;
-	
+
 
 
 	/*
 	// Continity  computation
-	//Compute distances. 
+	//Compute distances.
 	int closestEndPt1, closestEndPt2;
 	float closestDistance;
-	
+
 	int endpt1A = bundle[a].endPt1Index;
 	int endpt2B = bundle[b].endPt2Index;
 	int endpt2A = bundle[a].endPt2Index;
@@ -3667,7 +3672,7 @@ inline void compareFibersOld(
 	float dA1B2 = sqrt(dist(bundle[a].points[endpt1A], bundle[b].points[endpt2B]));
 	float dA2B1 = sqrt(dist(bundle[a].points[endpt2A], bundle[b].points[endpt1B]));
 	float dA2B2 = sqrt(dist(bundle[a].points[endpt2A], bundle[b].points[endpt2B]));
-	
+
 	map<float, pair<int, int>> endPtDistances;
 	endPtDistances[dA1B1] = make_pair(endpt1A, endpt1B);
 	endPtDistances[dA1B2] = make_pair(endpt1A, endpt2B);
@@ -3680,31 +3685,31 @@ inline void compareFibersOld(
 	p = it->second;
 	//cout << "closest distance " << it->first << " endpts " << p.first << " and " << p.second << endl;
 
-	float cosAng1 = 
-		bundle[a].dir[p.first][0] * bundle[b].dir[p.second][0] +
-		bundle[a].dir[p.first][1] * bundle[b].dir[p.second][1] +
-		bundle[a].dir[p.first][2] * bundle[b].dir[p.second][2];
+	float cosAng1 =
+	bundle[a].dir[p.first][0] * bundle[b].dir[p.second][0] +
+	bundle[a].dir[p.first][1] * bundle[b].dir[p.second][1] +
+	bundle[a].dir[p.first][2] * bundle[b].dir[p.second][2];
 	float sinAng1 = sqrt(1 - cosAng1*cosAng1);
 	if (sinAng1 < 0.5)
 	{
-		//compute the other angle. 
-		//find the farthest and compute the angle
-		map<float, pair<int, int> >::iterator itEnd = endPtDistances.end();
-		--itEnd; //find the last element
-		p = itEnd->second;
-		//cout << "furhtest distance " << it->first << " endpts " << p.first << " and " << p.second << endl;
+	//compute the other angle.
+	//find the farthest and compute the angle
+	map<float, pair<int, int> >::iterator itEnd = endPtDistances.end();
+	--itEnd; //find the last element
+	p = itEnd->second;
+	//cout << "furhtest distance " << it->first << " endpts " << p.first << " and " << p.second << endl;
 
-		float cosAng2 =
-			bundle[a].dir[p.first][0] * bundle[b].dir[p.second][0] +
-			bundle[a].dir[p.first][1] * bundle[b].dir[p.second][1] +
-			bundle[a].dir[p.first][2] * bundle[b].dir[p.second][2];
-		float sinAng2 = sqrt(1 - cosAng2*cosAng2);
+	float cosAng2 =
+	bundle[a].dir[p.first][0] * bundle[b].dir[p.second][0] +
+	bundle[a].dir[p.first][1] * bundle[b].dir[p.second][1] +
+	bundle[a].dir[p.first][2] * bundle[b].dir[p.second][2];
+	float sinAng2 = sqrt(1 - cosAng2*cosAng2);
 
 
-		if (sinAng2 < 0.5)
-		{
-			d = it->first;
-		}
+	if (sinAng2 < 0.5)
+	{
+	d = it->first;
+	}
 	}
 	*/
 	////////////////////////////
@@ -3712,44 +3717,44 @@ inline void compareFibersOld(
 
 	/*
 	float cosAng1 = bundle[a].dir[endpt1A][0] * bundle[b].dir[endpt2B][0] +
-		bundle[a].dir[endpt1A][1] * bundle[b].dir[endpt2B][1] +
-		bundle[a].dir[endpt1A][2] * bundle[b].dir[endpt2B][2];
+	bundle[a].dir[endpt1A][1] * bundle[b].dir[endpt2B][1] +
+	bundle[a].dir[endpt1A][2] * bundle[b].dir[endpt2B][2];
 	float sinAng1 = sqrt(1 - cosAng1*cosAng1);
 
 	cout << "cos angle " << endpt1A << "  and " << endpt2B << " is " << cosAng1
-		<< " sinAngle is "<< sinAng1 << endl;
+	<< " sinAngle is "<< sinAng1 << endl;
 	if (sinAng1 < 0.5)
 	{
-		float cosAng2 = bundle[a].dir[endpt2A][0] * bundle[b].dir[endpt1B][0] +
-			bundle[a].dir[endpt2A][1] * bundle[b].dir[endpt1B][1] +
-			bundle[a].dir[endpt2A][2] * bundle[b].dir[endpt1B][2];
+	float cosAng2 = bundle[a].dir[endpt2A][0] * bundle[b].dir[endpt1B][0] +
+	bundle[a].dir[endpt2A][1] * bundle[b].dir[endpt1B][1] +
+	bundle[a].dir[endpt2A][2] * bundle[b].dir[endpt1B][2];
 
-		float sinAng2 = sqrt(1 - cosAng2*cosAng2);
-		cout << "sinAngle between " << endpt2A << " and " << endpt1B << " is " << sinAng2 << endl;
+	float sinAng2 = sqrt(1 - cosAng2*cosAng2);
+	cout << "sinAngle between " << endpt2A << " and " << endpt1B << " is " << sinAng2 << endl;
 
-		if (sinAng2 < 0.5)
-		{
-			float d1 = sqrt(dist(bundle[a].points[endpt1A],
-				bundle[b].points[endpt2B]));
-			float d2 = sqrt(dist(bundle[a].points[endpt2A],
-				bundle[b].points[endpt1B]));
+	if (sinAng2 < 0.5)
+	{
+	float d1 = sqrt(dist(bundle[a].points[endpt1A],
+	bundle[b].points[endpt2B]));
+	float d2 = sqrt(dist(bundle[a].points[endpt2A],
+	bundle[b].points[endpt1B]));
 
-			if (d1 < d2)
-				d = d1;
-			else
-				d = d2;
-			cout << "Distance changed to "<< d << endl;
-		}
-		else
-		{
-			//angles dont match 
-			flagUseMax = true;
-		}
+	if (d1 < d2)
+	d = d1;
+	else
+	d = d2;
+	cout << "Distance changed to "<< d << endl;
 	}
 	else
 	{
-		//angles dont match 
-		flagUseMax = true;
+	//angles dont match
+	flagUseMax = true;
+	}
+	}
+	else
+	{
+	//angles dont match
+	flagUseMax = true;
 	}
 	*/
 
@@ -3757,7 +3762,7 @@ inline void compareFibersOld(
 
 
 
-	
+
 	//Original distance computataion.
 
 	for (int k = 0; k < M; k++)
@@ -3795,7 +3800,7 @@ inline void compareFibersOld(
 		d = 0.0;
 		cout << "total " << tot << ", num " << num << " \n";
 	}
-		
+
 	cout << "\nDistance between fiber " << a << " and fiber " << b << " is " << d << endl;
 
 
@@ -3812,37 +3817,46 @@ inline void compareAdvanced(
 	const int b,
 	float & d)
 {
-	float mean_min_distAB = 0.0, mean_min_distBA = 0.0;
-	bool  flagUseMax = false;
-	compareFibers(bundle, e, b, a, mean_min_distBA, flagUseMax);
 
-	compareFibers(bundle, e, a, b, mean_min_distAB, flagUseMax);
+	float mean_min_distAB = 0.0, mean_min_distBA = 0.0;
+	bool  flagUseEndPts = false;
+	compareFibers(bundle, e, b, a, mean_min_distBA, flagUseEndPts);
+	compareFibers(bundle, e, a, b, mean_min_distAB, flagUseEndPts);
+
+	if (mean_min_distAB < mean_min_distBA)
+		d = mean_min_distAB;
+	else
+	{
+		d = mean_min_distBA;
+	}
+
+
 
 	//DEBUG return the minumum
 	//d = (mean_min_distAB + mean_min_distBA) / 2.0;
 	// INSTEAD OF THE MIN returning the average
 
-	
-	if (mean_min_distAB < mean_min_distBA)
-	{
-		if (!flagUseMax) // if flagUseMax is false then return the minimum
-		{
-			d = mean_min_distAB;
-		}
-		else
-		{
-			d = mean_min_distBA; // return the maximum
-		}
-	}
-	else
-	{
-		if (!flagUseMax){ d = mean_min_distBA; }
-		else { d = mean_min_distAB; } // return the max 
-		
-	}
+	//
+	//if (mean_min_distAB < mean_min_distBA)
+	//{
+	//	if (!flagUseEndPts) // if flagUseEndPts is false then return the minimum
+	//	{
+	//		d = mean_min_distAB;
+	//	}
+	//	else
+	//	{
+	//		d = mean_min_distBA; // return the maximum
+	//	}
+	//}
+	//else
+	//{
+	//	if (!flagUseEndPts){ d = mean_min_distBA; }
+	//	else { d = mean_min_distAB; } // return the max 
+	//	
+	//}
 
 	//cout << "mean distance AB " << mean_min_distAB << " mean distance BA " << mean_min_distBA << "  d " << d << endl;
-	// cout << "distance returned " << d << " using max ? "<< int(flagUseMax) << endl; 
+	// cout << "distance returned " << d << " using max ? "<< int(flagUseEndPts) << endl; 
 	//cout << " AB: " << mean_min_distAB <<", BA: " << mean_min_distBA << ", d: " << d <<endl;
 
 }
@@ -3850,7 +3864,7 @@ inline void compareAdvanced(
 
 //
 void correctOrientationEndPointsFiber
-( vector<FIBER> & bundle,
+(vector<FIBER> & bundle,
 const int index // fiber index
 )
 {
@@ -3864,7 +3878,7 @@ const int index // fiber index
 	if (f.endPt1Index != 0)
 	{
 		endpt1A = f.endPt1Index;
-		endpt1APrevious = f.endPt1Index - 1; 
+		endpt1APrevious = f.endPt1Index - 1;
 
 		vector <float> vecAB(3, 0.0);
 		for (int d = 0; d < 3; d++)
@@ -3876,7 +3890,7 @@ const int index // fiber index
 		float magVecAB = 0.0;
 		for (int d = 0; d < 3; d++)
 		{
-			magVecAB = magVecAB +  vecAB[d] * vecAB[d];
+			magVecAB = magVecAB + vecAB[d] * vecAB[d];
 		}
 
 		magVecAB = sqrt(magVecAB);
@@ -3887,7 +3901,7 @@ const int index // fiber index
 		float dotPdt = 0.0;
 		for (int d = 0; d < 3; d++)
 		{
-			dotPdt = dotPdt + (vecAB[d]/magVecAB) * f.dir[endpt1A][d];
+			dotPdt = dotPdt + (vecAB[d] / magVecAB) * f.dir[endpt1A][d];
 		}
 
 		if (dotPdt < 0.0)
@@ -3923,7 +3937,7 @@ const int index // fiber index
 	float dotPdt = 0.0;
 	for (int d = 0; d < 3; d++)
 	{
-		dotPdt = dotPdt + vecAB[d]/magVecAB * f.dir[endpt2A][d];
+		dotPdt = dotPdt + vecAB[d] / magVecAB * f.dir[endpt2A][d];
 	}
 	if (dotPdt < 0.0)
 	{
@@ -3975,12 +3989,12 @@ void averageOrientationEndPointsFiber(
 		if (f.id == 77 || f.id == 550 || f.id == 573)
 		{
 			cout << "id " << f.id << endl;
-			cout << f.endPt1Index << " , " << f.endPt1Index - 1 << " || " 
+			cout << f.endPt1Index << " , " << f.endPt1Index - 1 << " || "
 				<< bundle[index].dir[f.endPt1Index][0] << " " << bundle[index].dir[f.endPt1Index][1]
 				<< " " << bundle[index].dir[f.endPt1Index][2] << endl;
-		}	
+		}
 	}
-	
+
 	if (f.endPt1Index == 0)
 	{
 		cout << "id " << f.id << endl;
@@ -3990,7 +4004,7 @@ void averageOrientationEndPointsFiber(
 			tempDir[d] = tempDir[d] + f.dir[f.endPt1Index][d];
 			// Note the f.endpt1Index + 1 has the same direction just in the opposite direction
 			// so we use the +2
-			tempDir[d] = tempDir[d] + f.dir[f.endPt1Index + 2][d]*(-1.0);
+			tempDir[d] = tempDir[d] + f.dir[f.endPt1Index + 2][d] * (-1.0);
 		}
 		for (int d = 0; d < 3; d++)
 		{
@@ -4017,4 +4031,185 @@ void averageOrientationEndPointsBundle(vector<FIBER> &bundle)
 	{
 		averageOrientationEndPointsFiber(bundle, f);
 	}
+}
+
+
+void readClusterInfoForKmeans
+(
+vector <int> &clusterIndices
+)
+{
+	string cluster("D:\\ABhattacharya\\Internship\\output\\cluster2014.csv");
+	cerr << "*********************** read data from cluster.csv***********" << endl;
+	ifstream in(cluster.c_str());
+	if (!in.is_open()) { cerr << "error in reading cluster \n"; exit(0); };
+
+	typedef tokenizer< escaped_list_separator<char> > Tokenizer;
+
+	vector< string > vec;
+	string line;
+	while (getline(in, line))
+	{
+		Tokenizer tok(line);
+		vec.assign(tok.begin(), tok.end());
+		vector<string>::iterator it = vec.begin();
+		istringstream os(*it);
+		int d;
+		os >> d;
+		clusterIndices.push_back(d);
+	}
+	cerr << "color coding by cluster " << endl;
+	cerr << "size " << clusterIndices.size() << endl;
+}
+
+void colorBundlesByCluster
+()
+{
+
+	typedef itk::ImageFileReader<intImageType> ReaderType;
+	//read an image
+	ReaderType::Pointer reader = ReaderType::New();
+	reader->SetFileName("D:\\ABhattacharya\\Internship\\output\\bundleID-clusterID2014.mhd");
+	try
+	{
+		reader->Update();
+	}
+	catch (itk::ExceptionObject e)
+	{
+		std::cerr << "*******Error: *********" << e << std::endl;
+	}
+
+	intImageType::Pointer image = reader->GetOutput();
+	intImageType::RegionType region = image->GetLargestPossibleRegion();
+	intImageType::SizeType size = region.GetSize();
+	cerr << "size:  " << size << endl;
+
+	vector <int> clusterIndices;
+	readClusterInfoForKmeans(clusterIndices);
+
+	intIteratorType it(image, region);
+	it.GoToBegin();
+	while (!it.IsAtEnd())
+	{
+		intImageType::IndexType idx;
+		idx = it.GetIndex();
+		int id = image->GetPixel(idx);
+		int color = clusterIndices[id - 1];
+
+		//cout << "id " << id << " idx "<< idx <<" color " << color << endl;
+		if (id > 0)
+			image->SetPixel(idx, color);
+		++it;
+	}
+	typedef itk::ImageFileWriter< intImageType > writerType2;
+	writerType2::Pointer   writer_bundle = writerType2::New();
+	writer_bundle->SetInput(image);
+
+	writer_bundle->SetFileName("D:\\ABhattacharya\\Internship\\output\\clusterID2014.mhd");
+	try
+	{
+		writer_bundle->Update();
+	}
+	catch (itk::ExceptionObject e)
+	{
+		std::cerr << "Error: " << e << std::endl;
+	}
+
+}
+
+void colorClusterVolume(
+	const INPUT_PARAMS * input
+	)
+{
+	typedef itk::ImageFileReader<intImageType> ReaderType;
+	//read an image
+	ReaderType::Pointer reader = ReaderType::New();
+	reader->SetFileName("D:\\ABhattacharya\\Internship\\output\\clusterID2014.mhd");
+	try
+	{
+		reader->Update();
+	}
+	catch (itk::ExceptionObject e)
+	{
+		std::cerr << "*******Error: *********" << e << std::endl;
+	}
+
+	intImageType::Pointer image = reader->GetOutput();
+	intImageType::RegionType region = image->GetLargestPossibleRegion();
+	intImageType::SizeType size = region.GetSize();
+	cerr << "***in color volume " << endl;
+	cerr << "size:  " << size << endl;
+	intIteratorType it(image, region);
+	it.GoToBegin();
+	while (!it.IsAtEnd())
+	{
+		intImageType::IndexType idx;
+		idx = it.GetIndex();
+		int id = image->GetPixel(idx);
+		if (std::find(input->voxelClusters.begin(), input->voxelClusters.end(), id) != input->voxelClusters.end())
+		{
+			image->SetPixel(idx, 1);
+		}
+		else
+		{
+			image->SetPixel(idx, 0);
+		}
+		++it;
+	}
+
+	cerr << "making volume " << endl;
+	int spacing = 3;
+	vector<int> radius(3, 2);
+	it.GoToBegin();
+	vector <intImageType::IndexType> newColors;
+	while (!it.IsAtEnd())
+	{
+		intImageType::IndexType idx;
+		idx = it.GetIndex();
+		int id = image->GetPixel(idx);
+		if (id == 1)
+		{
+			vector<int> vidx(3, 0);
+			vector <vector<int> >nearPts;
+			for (int d = 0; d < 3; d++)
+			{
+				vidx[d] = idx[d];
+			}
+			findNearPts(vidx, spacing, radius, nearPts);
+			for (int k = 0; k < nearPts.size(); k++)
+			{
+				idx[0] = nearPts[k][0];
+				idx[1] = nearPts[k][1];
+				idx[2] = nearPts[k][2];
+				if (region.IsInside(idx))
+				{
+					if (image->GetPixel(idx) == 0)
+						newColors.push_back(idx);
+				}
+			}
+		}
+		++it;
+	}
+
+	cerr << "done making voxel" << endl;
+	for (int i = 0; i < newColors.size(); i++)
+	{
+		image->SetPixel(newColors[i], 1);
+	}
+
+
+	typedef itk::ImageFileWriter< intImageType > writerType2;
+	writerType2::Pointer   writer_bundle = writerType2::New();
+	writer_bundle->SetInput(image);
+
+	writer_bundle->SetFileName("D:\\ABhattacharya\\Internship\\output\\clusterVol2014.mhd");
+	try
+	{
+		writer_bundle->Update();
+	}
+	catch (itk::ExceptionObject e)
+	{
+		std::cerr << "Error: " << e << std::endl;
+	}
+
 }

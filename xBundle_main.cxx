@@ -123,6 +123,16 @@ void readConfigFile(INPUT_PARAMS * input, const string configFileName)
 				cerr << "InputFileName:" << input->inputFileName << endl;
 			}
 		}
+		else if (configInfo[0] == "VOXELISE")
+		{
+			int l = configInfo.size();
+			
+			for (int i = 1; i < l; i++)
+			{
+				cout << "VOXEL " << atoi(configInfo[i].c_str()) << endl;
+				input->voxelClusters.push_back(atoi(configInfo[i].c_str()));
+			}
+		}
 		else
 		{
 			cerr << "NONE Of the options match" << endl;
@@ -302,6 +312,8 @@ int readParameters(int argc, char* argv[], INPUT_PARAMS * input)
 
 
 
+
+
 // Compute the required functions on the data
 int performComputations(INPUT_PARAMS * input)
 {
@@ -319,8 +331,21 @@ int performComputations(INPUT_PARAMS * input)
 			exit(0);
 		}
 
-		//perform hessian based computation 
-		hessian_based_computation(input, bundle);
+		if (!input->computeKmeans)
+			//perform hessian based computation 
+			hessian_based_computation(input, bundle);
+		else {
+			colorBundlesByCluster();
+			cout << "compute kmeans " << endl;
+			if (input->colorVol)
+			{
+				cout << "in colr volume" << endl;
+				colorClusterVolume(input);
+			}
+		}
+
+			
+
 
 		// printinfo 
 		if (!input->indicesFiberInfo.empty())

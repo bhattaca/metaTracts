@@ -52,10 +52,15 @@ public:
   vector <int> clusterCols;
   vector <int> indicesFiberInfo;
   vector <int> startLocations;
+  vector <int> voxelClusters;
+
 
   //cylinder 
   float cylLength;
   float cylRadius;
+  
+
+
 
   INPUT_PARAMS()
   {
@@ -70,9 +75,9 @@ public:
     Dimension =3;
     dataFileName = "data.csv";
     degugMode = false;
-	thresh = 60;
+	thresh = 10;
 	aniso_diff=true;
-	vness = 0.1;
+	vness = 0.01;
 	computeKmeans=false;
 	reliableHess = false;
 	byParts = false;
@@ -82,15 +87,15 @@ public:
 	colorTrack = false;
 	colorTrackID = -1;
 	
-	minFiberLength = 60.0;
+	minFiberLength = 50.0;
 	
 	colorVol=false;
 	clusterSpecific = false;
 	colorSpecificFibers = false; 
 	
 	//Cylinder
-	cylLength = 20.0;
-	cylRadius = 2.0;
+	cylLength = 10.0;
+	cylRadius = 3.0;
 	
 	//outputs D:\\ABhattacharya\\Internship\\output
 	/*
